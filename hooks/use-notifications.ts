@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 
 import { API_BASE_URL } from "@/lib/api"
 import { useWebSocket, OrderNotification as WSOrderNotification } from "./use-websocket"
@@ -32,6 +32,7 @@ export function useNotifications() {
         const stored = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY)
         if (stored) {
           const parsed = JSON.parse(stored)
+          // Sort by createdAt (newest first) - most recent at top
           const sorted = parsed.sort((a: Notification, b: Notification) => 
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           )
@@ -44,13 +45,17 @@ export function useNotifications() {
     }
   }, [])
 
-  // Save notifications to localStorage
+  // Save notifications to localStorage (always sorted by newest first)
   const saveNotifications = useCallback((newNotifications: Notification[]) => {
     if (typeof window !== "undefined") {
       try {
-        localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(newNotifications))
-        setNotifications(newNotifications)
-        setUnreadCount(newNotifications.filter((n) => !n.read).length)
+        // Always sort by createdAt (newest first) before saving
+        const sorted = [...newNotifications].sort((a: Notification, b: Notification) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(sorted))
+        setNotifications(sorted)
+        setUnreadCount(sorted.filter((n) => !n.read).length)
       } catch (error) {
         console.error("Error saving notifications:", error)
       }
@@ -160,14 +165,11 @@ export function useNotifications() {
         
         if (uniqueNewNotifications.length > 0) {
           console.log(`Adding ${uniqueNewNotifications.length} new notification(s)`)
+          // Add new notifications at the beginning (they're already newest)
           const updatedNotifications = [...uniqueNewNotifications, ...existingNotifications]
-          // Keep only last 50 notifications
+          // Keep only last 50 notifications (saveNotifications will sort by newest first)
           const trimmedNotifications = updatedNotifications.slice(0, 50)
-          // Sort by date (newest first)
-          const sorted = trimmedNotifications.sort((a: Notification, b: Notification) => 
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          )
-          saveNotifications(sorted)
+          saveNotifications(trimmedNotifications)
           
           // Trigger browser notification if supported
           if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
@@ -192,18 +194,21 @@ export function useNotifications() {
     const updated = notifications.map((n) =>
       n.id === notificationId ? { ...n, read: true } : n
     )
+    // saveNotifications will sort by newest first
     saveNotifications(updated)
   }, [notifications, saveNotifications])
 
   // Mark all as read
   const markAllAsRead = useCallback(() => {
     const updated = notifications.map((n) => ({ ...n, read: true }))
+    // saveNotifications will sort by newest first
     saveNotifications(updated)
   }, [notifications, saveNotifications])
 
   // Delete notification
   const deleteNotification = useCallback((notificationId: number) => {
     const updated = notifications.filter((n) => n.id !== notificationId)
+    // saveNotifications will sort by newest first
     saveNotifications(updated)
   }, [notifications, saveNotifications])
 
@@ -245,14 +250,11 @@ export function useNotifications() {
     // Check for duplicates
     const existingOrderIds = new Set(existingNotifications.map((n: Notification) => n.orderId))
     if (!existingOrderIds.has(newNotification.orderId)) {
+      // Add new notification at the beginning (it's the newest)
       const updatedNotifications = [newNotification, ...existingNotifications]
-      // Keep only last 50 notifications
+      // Keep only last 50 notifications (saveNotifications will sort by newest first)
       const trimmedNotifications = updatedNotifications.slice(0, 50)
-      // Sort by date (newest first)
-      const sorted = trimmedNotifications.sort((a: Notification, b: Notification) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      saveNotifications(sorted)
+      saveNotifications(trimmedNotifications)
 
       // Trigger browser notification
       if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
@@ -289,8 +291,15 @@ export function useNotifications() {
     }
   }, [checkForNewOrders, isConnected])
 
+  // Ensure notifications are always sorted by newest first (most recent at top)
+  const sortedNotifications = useMemo(() => {
+    return [...notifications].sort((a: Notification, b: Notification) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+  }, [notifications])
+
   return {
-    notifications,
+    notifications: sortedNotifications,
     unreadCount,
     markAsRead,
     markAllAsRead,
