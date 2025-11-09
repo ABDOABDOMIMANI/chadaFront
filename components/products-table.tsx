@@ -151,6 +151,8 @@ export function ProductsTable({ products, loading, onEdit, onDelete, onToggleAct
                       className="object-cover transition-transform duration-300 group-hover:scale-110"
                       sizes="80px"
                       loading="lazy"
+                      quality={75}
+                      unoptimized={false}
                     />
                     {getImageCount(product) > 1 && (
                       <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-2 py-0.5 rounded flex items-center gap-1">

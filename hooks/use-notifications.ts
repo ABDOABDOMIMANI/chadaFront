@@ -76,16 +76,30 @@ export function useNotifications() {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
+          "Accept": "application/json",
         },
         credentials: "omit",
+        cache: "no-cache",
       })
       
       if (!res.ok) {
         console.error("Failed to fetch orders:", res.status, res.statusText)
+        // Try to get error message
+        try {
+          const errorText = await res.text()
+          console.error("Error response:", errorText)
+        } catch (e) {
+          // Ignore
+        }
         return
       }
       
       const orders = await res.json()
+      
+      if (!orders) {
+        console.warn("Orders API returned null or undefined")
+        return
+      }
 
       if (!Array.isArray(orders) || orders.length === 0) {
         // If no orders exist, initialize lastOrderId to 0
