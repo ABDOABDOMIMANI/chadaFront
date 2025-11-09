@@ -1,6 +1,13 @@
 import type { ReactNode } from "react"
+import type { Metadata } from "next"
 import { Providers } from "@/app/providers"
 import "@/app/globals.css"
+
+export const metadata: Metadata = {
+  title: "لوحة تحكم عطور الشدا - Chada Admin Dashboard",
+  description: "نظام إدارة عطور الشدا - Chada Perfumes Admin Panel",
+  generator: "v0.app",
+}
 
 export default function RootLayout({
   children,
@@ -15,7 +22,3 @@ export default function RootLayout({
     </html>
   )
 }
-
-export const metadata = {
-      generator: 'v0.app'
-    };
