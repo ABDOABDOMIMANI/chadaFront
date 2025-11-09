@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 
 import { API_BASE_URL } from "@/lib/api"
+import { useWebSocket, OrderNotification as WSOrderNotification } from "./use-websocket"
 
 export interface Notification {
   id: number
@@ -223,20 +224,70 @@ export function useNotifications() {
     }
   }, [])
 
-  // Poll for new orders every 5 seconds
-  useEffect(() => {
-    // Initial check immediately
-    checkForNewOrders()
-
-    // Then check every 5 seconds
-    const interval = setInterval(() => {
-      checkForNewOrders()
-    }, 5000)
-
-    return () => {
-      clearInterval(interval)
+  // Handle WebSocket order notifications
+  const handleWebSocketOrder = useCallback((order: WSOrderNotification) => {
+    console.log("WebSocket: Received new order notification:", order)
+    
+    // Create notification from WebSocket order
+    const newNotification: Notification = {
+      id: Date.now() + order.orderId + Math.random(),
+      orderId: order.orderId,
+      customerName: order.customerName || "عميل",
+      totalAmount: order.totalAmount || 0,
+      createdAt: order.createdAt || new Date().toISOString(),
+      read: false,
+      type: "order",
     }
-  }, [checkForNewOrders])
+
+    // Add to existing notifications
+    const existingNotifications = loadNotificationsFromStorage()
+    
+    // Check for duplicates
+    const existingOrderIds = new Set(existingNotifications.map((n: Notification) => n.orderId))
+    if (!existingOrderIds.has(newNotification.orderId)) {
+      const updatedNotifications = [newNotification, ...existingNotifications]
+      // Keep only last 50 notifications
+      const trimmedNotifications = updatedNotifications.slice(0, 50)
+      // Sort by date (newest first)
+      const sorted = trimmedNotifications.sort((a: Notification, b: Notification) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+      saveNotifications(sorted)
+
+      // Trigger browser notification
+      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+        new Notification("طلب جديد", {
+          body: `طلب جديد من ${order.customerName || "عميل"} - ${order.totalAmount || 0} د.م`,
+          icon: "/chada-logo.png",
+        })
+      }
+    }
+  }, [saveNotifications, loadNotificationsFromStorage])
+
+  // Connect to WebSocket
+  const { isConnected, reconnectAttempts } = useWebSocket(handleWebSocketOrder)
+
+  // Fallback: Poll for new orders every 30 seconds if WebSocket is not connected
+  useEffect(() => {
+    if (!isConnected) {
+      console.warn("WebSocket not connected, using polling fallback")
+      // Initial check immediately
+      checkForNewOrders()
+
+      // Then check every 30 seconds (longer interval since WebSocket is preferred)
+      const interval = setInterval(() => {
+        checkForNewOrders()
+      }, 30000) // 30 seconds
+
+      return () => {
+        clearInterval(interval)
+      }
+    } else {
+      console.log("WebSocket connected, skipping polling")
+      // Do initial check once when WebSocket connects
+      checkForNewOrders()
+    }
+  }, [checkForNewOrders, isConnected])
 
   return {
     notifications,
@@ -246,6 +297,8 @@ export function useNotifications() {
     deleteNotification,
     clearAll,
     checkForNewOrders,
+    isWebSocketConnected: isConnected,
+    webSocketReconnectAttempts: reconnectAttempts,
   }
 }
 

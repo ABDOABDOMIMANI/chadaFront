@@ -34,16 +34,21 @@ export function ProductsTable({ products, loading, onEdit, onDelete, onToggleAct
     try {
       if (product.imageUrls) {
         const imageUrls = JSON.parse(product.imageUrls)
-        if (Array.isArray(imageUrls) && imageUrls.length > 0) {
-          return buildImageUrl(imageUrls[0])
+        if (Array.isArray(imageUrls) && imageUrls.length > 0 && imageUrls[0]) {
+          const url = buildImageUrl(imageUrls[0])
+          console.log("Product image URL:", url, "for product:", product.name)
+          return url
         }
       }
       if (product.imageUrl) {
-        return buildImageUrl(product.imageUrl)
+        const url = buildImageUrl(product.imageUrl)
+        console.log("Product image URL (single):", url, "for product:", product.name)
+        return url
       }
     } catch (e) {
-      // Ignore
+      console.error("Error getting product image:", e, product)
     }
+    console.warn("No image found for product, using placeholder:", product.name)
     return "/placeholder.svg?height=64&width=64"
   }
 
@@ -153,6 +158,9 @@ export function ProductsTable({ products, loading, onEdit, onDelete, onToggleAct
                       loading="lazy"
                       quality={75}
                       unoptimized={false}
+                      onError={(e) => {
+                        console.error("Image failed to load:", getProductImage(product))
+                      }}
                     />
                     {getImageCount(product) > 1 && (
                       <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-2 py-0.5 rounded flex items-center gap-1">
