@@ -39,23 +39,27 @@ export function CategoriesPage() {
   const handleSaveCategory = async (categoryData: any) => {
     try {
       if (editingCategory) {
-        await fetch(`${API_BASE_URL}/categories/${editingCategory.id}`, {
+        const res = await fetch(`${API_BASE_URL}/categories/${editingCategory.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(categoryData),
         })
+        if (!res.ok) throw new Error("Failed to update category")
       } else {
-        await fetch(`${API_BASE_URL}/categories`, {
+        const res = await fetch(`${API_BASE_URL}/categories`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(categoryData),
         })
+        if (!res.ok) throw new Error("Failed to create category")
       }
       fetchCategories()
       setShowModal(false)
       setEditingCategory(null)
     } catch (error) {
       console.error("Error saving category:", error)
+      alert("حدث خطأ أثناء حفظ الفئة")
+      throw error
     }
   }
 

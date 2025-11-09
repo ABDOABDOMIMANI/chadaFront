@@ -77,7 +77,6 @@ export function useNotifications() {
         headers: {
           "Content-Type": "application/json",
         },
-        // Add credentials for CORS if needed
         credentials: "omit",
       })
       
@@ -88,27 +87,45 @@ export function useNotifications() {
       
       const orders = await res.json()
 
-      if (!Array.isArray(orders) || orders.length === 0) return
+      if (!Array.isArray(orders) || orders.length === 0) {
+        // If no orders exist, initialize lastOrderId to 0
+        if (typeof window !== "undefined" && !localStorage.getItem(LAST_ORDER_ID_KEY)) {
+          localStorage.setItem(LAST_ORDER_ID_KEY, "0")
+        }
+        return
+      }
 
-      // Get last known order ID
-      const lastOrderId = typeof window !== "undefined"
-        ? parseInt(localStorage.getItem(LAST_ORDER_ID_KEY) || "0")
-        : 0
+      // Get last known order ID (initialize to 0 if not set)
+      let lastOrderId = 0
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem(LAST_ORDER_ID_KEY)
+        if (stored) {
+          lastOrderId = parseInt(stored, 10) || 0
+        } else {
+          // First time - set to the highest existing order ID to avoid creating notifications for old orders
+          const maxOrderId = Math.max(...orders.map((o: any) => o.id || 0))
+          localStorage.setItem(LAST_ORDER_ID_KEY, maxOrderId.toString())
+          lastOrderId = maxOrderId
+        }
+      }
 
-      // Find new orders
+      // Find new orders (only orders created after the last known order)
       const newOrders = orders
-        .filter((order: any) => order.id > lastOrderId)
+        .filter((order: any) => order.id && order.id > lastOrderId)
         .sort((a: any, b: any) => b.id - a.id)
 
       if (newOrders.length > 0) {
-        // Update last order ID
+        console.log(`Found ${newOrders.length} new order(s)`)
+        
+        // Update last order ID to the highest new order ID
+        const maxNewOrderId = Math.max(...newOrders.map((o: any) => o.id))
         if (typeof window !== "undefined") {
-          localStorage.setItem(LAST_ORDER_ID_KEY, newOrders[0].id.toString())
+          localStorage.setItem(LAST_ORDER_ID_KEY, maxNewOrderId.toString())
         }
 
         // Create notifications for new orders
         const newNotifications: Notification[] = newOrders.map((order: any) => ({
-          id: Date.now() + order.id, // Unique ID
+          id: Date.now() + order.id + Math.random(), // Unique ID
           orderId: order.id,
           customerName: order.customerName || "عميل",
           totalAmount: order.totalAmount || 0,
@@ -127,6 +144,7 @@ export function useNotifications() {
         )
         
         if (uniqueNewNotifications.length > 0) {
+          console.log(`Adding ${uniqueNewNotifications.length} new notification(s)`)
           const updatedNotifications = [...uniqueNewNotifications, ...existingNotifications]
           // Keep only last 50 notifications
           const trimmedNotifications = updatedNotifications.slice(0, 50)
@@ -135,6 +153,16 @@ export function useNotifications() {
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           )
           saveNotifications(sorted)
+          
+          // Trigger browser notification if supported
+          if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+            newOrders.forEach((order: any) => {
+              new Notification("طلب جديد", {
+                body: `طلب جديد من ${order.customerName || "عميل"} - ${order.totalAmount || 0} د.م`,
+                icon: "/chada-logo.png",
+              })
+            })
+          }
         }
       }
     } catch (error) {
@@ -172,12 +200,19 @@ export function useNotifications() {
     }
   }, [saveNotifications])
 
+  // Request notification permission on mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().then((permission) => {
+        console.log("Notification permission:", permission)
+      })
+    }
+  }, [])
+
   // Poll for new orders every 5 seconds
   useEffect(() => {
-    // Initial check after 1 second
-    const initialTimeout = setTimeout(() => {
-      checkForNewOrders()
-    }, 1000)
+    // Initial check immediately
+    checkForNewOrders()
 
     // Then check every 5 seconds
     const interval = setInterval(() => {
@@ -185,7 +220,6 @@ export function useNotifications() {
     }, 5000)
 
     return () => {
-      clearTimeout(initialTimeout)
       clearInterval(interval)
     }
   }, [checkForNewOrders])

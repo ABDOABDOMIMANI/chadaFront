@@ -36,6 +36,7 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
   const [viewingImage, setViewingImage] = useState<string | null>(null)
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null)
   const [originalPrice, setOriginalPrice] = useState<number | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -215,6 +216,7 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsSubmitting(true)
 
     try {
       const enteredPrice = parseFloat(formData.price)
@@ -326,7 +328,8 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
           body: JSON.stringify(updateData),
         })
         if (updateRes.ok) {
-          onSave(await updateRes.json())
+          const updatedProduct = await updateRes.json()
+          onSave(updatedProduct)
         } else {
           onSave(savedProduct)
         }
@@ -362,6 +365,8 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
     } catch (error) {
       console.error("Error saving product:", error)
       alert("حدث خطأ أثناء حفظ المنتج")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -823,25 +828,36 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
             <div className="flex gap-4 pt-4 border-t" style={{ borderColor: `var(--color-border)` }}>
               <button
                 type="submit"
-                className="flex-1 px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 hover:shadow-lg"
+                disabled={isSubmitting}
+                className="flex-1 px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
                 style={{ 
                   background: "linear-gradient(135deg, #fbbf24 0%, #fcd34d 100%)",
                   color: "#1e40af",
                   boxShadow: "0 4px 12px rgba(251, 191, 36, 0.3)",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = "0 6px 16px rgba(251, 191, 36, 0.4)"
+                  if (!isSubmitting) {
+                    e.currentTarget.style.boxShadow = "0 6px 16px rgba(251, 191, 36, 0.4)"
+                  }
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.boxShadow = "0 4px 12px rgba(251, 191, 36, 0.3)"
                 }}
               >
-                {product ? "حفظ التغييرات" : "إضافة المنتج"}
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-700"></div>
+                    <span>جاري الحفظ...</span>
+                  </>
+                ) : (
+                  product ? "حفظ التغييرات" : "إضافة المنتج"
+                )}
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="px-8 py-4 rounded-xl font-semibold transition-all hover:bg-gray-100 dark:hover:bg-gray-800 text-base"
+                disabled={isSubmitting}
+                className="px-8 py-4 rounded-xl font-semibold transition-all hover:bg-gray-100 dark:hover:bg-gray-800 text-base disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   border: `2px solid var(--color-border)`,
                   color: `var(--color-text)`,

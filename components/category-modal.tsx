@@ -16,6 +16,7 @@ export function CategoryModal({ category, onSave, onClose }: CategoryModalProps)
     description: "",
     imageUrl: "",
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     if (category) {
@@ -41,9 +42,18 @@ export function CategoryModal({ category, onSave, onClose }: CategoryModalProps)
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSave(formData)
+    setIsSubmitting(true)
+    try {
+      await onSave(formData)
+      // Modal will be closed by the parent component after successful save
+    } catch (error) {
+      console.error("Error saving category:", error)
+      // Error is already handled in the parent component
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -156,25 +166,36 @@ export function CategoryModal({ category, onSave, onClose }: CategoryModalProps)
           <div className="flex gap-6 pt-6 border-t" style={{ borderColor: `var(--color-border)` }}>
             <button
               type="submit"
-              className="flex-1 px-8 py-4 rounded-xl font-bold transition-all hover:scale-105 hover:shadow-lg text-lg"
+              disabled={isSubmitting}
+              className="flex-1 px-8 py-4 rounded-xl font-bold transition-all hover:scale-105 hover:shadow-lg text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
               style={{ 
                 background: "linear-gradient(135deg, #fbbf24 0%, #fcd34d 100%)",
                 color: "#1e40af",
                 boxShadow: "0 4px 12px rgba(251, 191, 36, 0.3)",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = "0 6px 16px rgba(251, 191, 36, 0.4)"
+                if (!isSubmitting) {
+                  e.currentTarget.style.boxShadow = "0 6px 16px rgba(251, 191, 36, 0.4)"
+                }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.boxShadow = "0 4px 12px rgba(251, 191, 36, 0.3)"
               }}
             >
-              {category ? "حفظ التغييرات" : "إضافة الفئة"}
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-700"></div>
+                  <span>جاري الحفظ...</span>
+                </>
+              ) : (
+                category ? "حفظ التغييرات" : "إضافة الفئة"
+              )}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="px-8 py-4 rounded-xl font-semibold transition-all hover:bg-gray-100 dark:hover:bg-gray-800 text-base"
+              disabled={isSubmitting}
+              className="px-8 py-4 rounded-xl font-semibold transition-all hover:bg-gray-100 dark:hover:bg-gray-800 text-base disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 border: `2px solid var(--color-border)`,
                 color: `var(--color-text)`,
