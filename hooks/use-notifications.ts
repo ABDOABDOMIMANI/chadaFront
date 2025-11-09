@@ -56,14 +56,39 @@ export function useNotifications() {
     }
   }, [])
 
+  // Load notifications from storage
+  const loadNotificationsFromStorage = useCallback((): Notification[] => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY)
+        return stored ? JSON.parse(stored) : []
+      } catch {
+        return []
+      }
+    }
+    return []
+  }, [])
+
   // Check for new orders
   const checkForNewOrders = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/orders`)
-      if (!res.ok) throw new Error("Failed to fetch orders")
+      const res = await fetch(`${API_BASE_URL}/orders`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        // Add credentials for CORS if needed
+        credentials: "omit",
+      })
+      
+      if (!res.ok) {
+        console.error("Failed to fetch orders:", res.status, res.statusText)
+        return
+      }
+      
       const orders = await res.json()
 
-      if (orders.length === 0) return
+      if (!Array.isArray(orders) || orders.length === 0) return
 
       // Get last known order ID
       const lastOrderId = typeof window !== "undefined"
@@ -85,9 +110,9 @@ export function useNotifications() {
         const newNotifications: Notification[] = newOrders.map((order: any) => ({
           id: Date.now() + order.id, // Unique ID
           orderId: order.id,
-          customerName: order.customerName,
-          totalAmount: order.totalAmount,
-          createdAt: order.createdAt,
+          customerName: order.customerName || "عميل",
+          totalAmount: order.totalAmount || 0,
+          createdAt: order.createdAt || new Date().toISOString(),
           read: false,
           type: "order" as const,
         }))
@@ -114,21 +139,10 @@ export function useNotifications() {
       }
     } catch (error) {
       console.error("Error checking for new orders:", error)
+      // Don't throw, just log the error
     }
-  }, [saveNotifications])
+  }, [saveNotifications, loadNotificationsFromStorage])
 
-  // Load notifications from storage
-  const loadNotificationsFromStorage = (): Notification[] => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY)
-        return stored ? JSON.parse(stored) : []
-      } catch {
-        return []
-      }
-    }
-    return []
-  }
 
   // Mark notification as read
   const markAsRead = useCallback((notificationId: number) => {
@@ -174,8 +188,7 @@ export function useNotifications() {
       clearTimeout(initialTimeout)
       clearInterval(interval)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [checkForNewOrders])
 
   return {
     notifications,

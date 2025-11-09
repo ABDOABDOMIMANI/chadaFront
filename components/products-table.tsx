@@ -2,6 +2,7 @@
 
 import { Edit, Trash2, Eye, EyeOff, Image as ImageIcon } from "lucide-react"
 import { useState } from "react"
+import Image from "next/image"
 
 import { API_BASE_URL, buildImageUrl } from "@/lib/api"
 
@@ -143,10 +144,13 @@ export function ProductsTable({ products, loading, onEdit, onDelete, onToggleAct
                     onMouseEnter={() => setHoveredImage(product.id)}
                     onMouseLeave={() => setHoveredImage(null)}
                   >
-                    <img
+                    <Image
                       src={getProductImage(product)}
                       alt={product.name}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                      fill
+                      className="object-cover transition-transform duration-300 group-hover:scale-110"
+                      sizes="80px"
+                      loading="lazy"
                     />
                     {getImageCount(product) > 1 && (
                       <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-2 py-0.5 rounded flex items-center gap-1">

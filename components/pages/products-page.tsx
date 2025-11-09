@@ -96,20 +96,41 @@ export function ProductsPage() {
   const handleDeleteProduct = async (id: number) => {
     if (!confirm("هل أنت متأكد من حذف هذا المنتج نهائياً من قاعدة البيانات؟ لا يمكن التراجع عن هذا الإجراء.")) return
     try {
-      const response = await fetch(`${API_BASE_URL}/products/${id}`, { method: "DELETE" })
+      const response = await fetch(`${API_BASE_URL}/products/${id}`, { 
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+      
       if (response.ok) {
-        // Remove product from state immediately
-        setProducts((prev) => prev.filter((p) => p.id !== id))
-        setFilteredProducts((prev) => prev.filter((p) => p.id !== id))
-        alert("تم حذف المنتج من قاعدة البيانات بنجاح!")
+        try {
+          const result = await response.json()
+          // Remove product from state immediately
+          setProducts((prev) => prev.filter((p) => p.id !== id))
+          setFilteredProducts((prev) => prev.filter((p) => p.id !== id))
+          alert("تم حذف المنتج من قاعدة البيانات بنجاح!")
+        } catch (parseError) {
+          // If response is not JSON (shouldn't happen, but handle it)
+          console.warn("Response was OK but not JSON:", parseError)
+          setProducts((prev) => prev.filter((p) => p.id !== id))
+          setFilteredProducts((prev) => prev.filter((p) => p.id !== id))
+          alert("تم حذف المنتج من قاعدة البيانات بنجاح!")
+        }
       } else {
-        console.error("Failed to delete product")
-        alert("فشل حذف المنتج. يرجى المحاولة مرة أخرى.")
+        let errorText = "يرجى المحاولة مرة أخرى"
+        try {
+          errorText = await response.text()
+        } catch (e) {
+          console.error("Could not read error response:", e)
+        }
+        console.error("Failed to delete product:", response.status, errorText)
+        alert(`فشل حذف المنتج: ${errorText}`)
         fetchProducts() // Refresh on error
       }
     } catch (error) {
       console.error("Error deleting product:", error)
-      alert("حدث خطأ أثناء حذف المنتج. يرجى المحاولة مرة أخرى.")
+      alert(`حدث خطأ أثناء حذف المنتج: ${error instanceof Error ? error.message : "يرجى المحاولة مرة أخرى"}`)
       fetchProducts() // Refresh on error
     }
   }
