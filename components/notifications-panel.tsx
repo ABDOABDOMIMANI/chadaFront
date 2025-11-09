@@ -6,7 +6,7 @@ import { useNotifications, Notification } from "@/hooks/use-notifications"
 import Link from "next/link"
 
 export function NotificationsPanel() {
-  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, clearAll } = useNotifications()
+  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, clearAll, isWebSocketConnected } = useNotifications()
   const [isOpen, setIsOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -92,6 +92,10 @@ export function NotificationsPanel() {
                   {unreadCount}
                 </span>
               )}
+              {/* WebSocket Connection Status */}
+              <div className="flex items-center gap-1 ml-2">
+                <div className={`w-2 h-2 rounded-full ${isWebSocketConnected ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'}`} title={isWebSocketConnected ? 'متصل (WebSocket)' : 'غير متصل (Polling)'}></div>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               {notifications.length > 0 && unreadCount > 0 && (
