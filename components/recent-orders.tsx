@@ -5,7 +5,7 @@ import { OrderStatusBadge } from "./order-status-badge"
 import { Package, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
-const API_BASE_URL = "http://localhost:8080"
+import { API_BASE_URL } from "@/lib/api"
 
 interface Order {
   id: number

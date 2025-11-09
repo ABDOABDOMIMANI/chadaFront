@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { OrdersTable } from "@/components/orders-table"
 
-const API_BASE_URL = "http://localhost:8080"
+import { API_BASE_URL } from "@/lib/api"
 
 interface Order {
   id: number

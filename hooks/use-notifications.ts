@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 
-const API_BASE_URL = "http://localhost:8080"
+import { API_BASE_URL } from "@/lib/api"
 
 export interface Notification {
   id: number

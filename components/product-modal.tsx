@@ -4,7 +4,7 @@ import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { X, Upload, Image as ImageIcon, Trash2, Eye, Percent, Calendar } from "lucide-react"
 
-const API_BASE_URL = "http://localhost:8080"
+import { API_BASE_URL, buildImageUrl } from "@/lib/api"
 
 interface ProductModalProps {
   product: any | null
@@ -65,6 +65,7 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
         promotionDays: product.promotionDays || "",
       })
 
+
       // Load existing images and image details
       if (product.imageDetails) {
         try {
@@ -73,7 +74,7 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
             setExistingImages(parsed.map((img: any) => img.url || img))
             setImagePreviews(parsed.map((img: any) => {
               const url = img.url || img
-              return url.startsWith("http") ? url : `${API_BASE_URL}${url.startsWith("/") ? url : "/api/images/" + url}`
+              return buildImageUrl(url)
             }))
             setImageDetails(parsed.map((img: any) => ({
               price: img.price?.toString() || "",
@@ -89,18 +90,14 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
           const parsed = JSON.parse(product.imageUrls)
           if (Array.isArray(parsed)) {
             setExistingImages(parsed)
-            setImagePreviews(parsed.map((url: string) => 
-              url.startsWith("http") ? url : `${API_BASE_URL}${url.startsWith("/") ? url : "/api/images/" + url}`
-            ))
+            setImagePreviews(parsed.map((url: string) => buildImageUrl(url)))
             setImageDetails(parsed.map(() => ({ price: "", description: "", quantity: "" })))
           }
         } catch (e) {
           console.error("Error parsing imageUrls:", e)
         }
       } else if (product.imageUrl) {
-        const url = product.imageUrl.startsWith("http")
-          ? product.imageUrl
-          : `${API_BASE_URL}${product.imageUrl.startsWith("/") ? product.imageUrl : "/api/images/" + product.imageUrl}`
+        const url = buildImageUrl(product.imageUrl)
         setExistingImages([product.imageUrl])
         setImagePreviews([url])
         setImageDetails([{ price: "", description: "", quantity: "" }])
@@ -369,8 +366,7 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
   }
 
   const getImageUrl = (url: string) => {
-    if (url.startsWith("http")) return url
-    return `${API_BASE_URL}${url.startsWith("/") ? url : "/api/images/" + url}`
+    return buildImageUrl(url) || ""
   }
 
   return (

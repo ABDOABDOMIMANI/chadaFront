@@ -6,7 +6,7 @@ import { RecentOrders } from "@/components/recent-orders"
 import { MonthlySalesChart } from "@/components/monthly-sales-chart"
 import { Package, ShoppingBag, FolderOpen, AlertCircle } from "lucide-react"
 
-const API_BASE_URL = "http://localhost:8080"
+import { API_BASE_URL } from "@/lib/api"
 
 export function DashboardPage() {
   const [stats, setStats] = useState({

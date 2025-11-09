@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 
-const API_BASE_URL = "http://localhost:8080"
+import { API_BASE_URL } from "@/lib/api"
 
 interface MonthlySalesData {
   month: string

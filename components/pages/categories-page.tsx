@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { CategoriesTable } from "@/components/categories-table"
 import { CategoryModal } from "@/components/category-modal"
 
-const API_BASE_URL = "http://localhost:8080"
+import { API_BASE_URL } from "@/lib/api"
 
 interface Category {
   id: number

@@ -5,7 +5,7 @@ import { ProductsTable } from "@/components/products-table"
 import { ProductModal } from "@/components/product-modal"
 import { ProductFilters } from "@/components/product-filters"
 
-const API_BASE_URL = "http://localhost:8080"
+import { API_BASE_URL } from "@/lib/api"
 
 interface Product {
   id: number
