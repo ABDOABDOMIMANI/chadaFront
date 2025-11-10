@@ -206,9 +206,7 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
         fragrance: formData.fragrance,
         volume: formData.volume ? Number.parseInt(formData.volume) : null,
         active: formData.active,
-        // Price and stock are now null - they come from imageDetails
-        price: null,
-        stock: null,
+        // Price and stock are removed - they come from imageDetails only
       }
 
       // Handle promotion pricing (applies to all images via discountPercentage)
@@ -287,8 +285,10 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
         })
         
         // Update product with image details
+        // Remove price and stock from savedProduct if they exist (legacy fields)
+        const { price, stock, ...productWithoutPriceStock } = savedProduct as any
         const updateData = {
-          ...savedProduct,
+          ...productWithoutPriceStock,
           imageDetails: JSON.stringify(finalImageDetails),
         }
         const updateRes = await fetch(`${API_BASE_URL}/products/${savedProduct.id}`, {
@@ -307,6 +307,8 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
         if (product) {
           // Update existing product - preserve images and add image details
           const allImageDetails = prepareImageDetails(existingImages)
+          // Remove price and stock from product if they exist (legacy fields)
+          const { price, stock, ...productWithoutPriceStock } = product as any
           const updateData = {
             ...productData,
             imageUrl: product.imageUrl,
