@@ -9,11 +9,10 @@ import { API_BASE_URL, buildImageUrl } from "@/lib/api"
 interface Product {
   id: number
   name: string
-  price: number
-  stock: number
   category: { id: number; name: string }
   imageUrl?: string
   imageUrls?: string
+  imageDetails?: string
   volume?: number
   active: boolean
 }
@@ -32,6 +31,20 @@ export function ProductsTable({ products, loading, onEdit, onDelete, onToggleAct
 
   const getProductImage = (product: Product): string => {
     try {
+      // Try imageDetails first (new format)
+      if (product.imageDetails) {
+        const imageDetails = JSON.parse(product.imageDetails)
+        if (Array.isArray(imageDetails) && imageDetails.length > 0) {
+          const firstImage = imageDetails[0]
+          const url = firstImage.url || firstImage
+          if (url) {
+            const fullUrl = buildImageUrl(url)
+            console.log("Product image URL from imageDetails:", fullUrl, "for product:", product.name)
+            return fullUrl
+          }
+        }
+      }
+      // Fallback to imageUrls (legacy format)
       if (product.imageUrls) {
         const imageUrls = JSON.parse(product.imageUrls)
         if (Array.isArray(imageUrls) && imageUrls.length > 0 && imageUrls[0]) {
@@ -40,6 +53,7 @@ export function ProductsTable({ products, loading, onEdit, onDelete, onToggleAct
           return url
         }
       }
+      // Fallback to single imageUrl
       if (product.imageUrl) {
         const url = buildImageUrl(product.imageUrl)
         console.log("Product image URL (single):", url, "for product:", product.name)
@@ -54,6 +68,12 @@ export function ProductsTable({ products, loading, onEdit, onDelete, onToggleAct
 
   const getImageCount = (product: Product): number => {
     try {
+      if (product.imageDetails) {
+        const imageDetails = JSON.parse(product.imageDetails)
+        if (Array.isArray(imageDetails)) {
+          return imageDetails.length
+        }
+      }
       if (product.imageUrls) {
         const imageUrls = JSON.parse(product.imageUrls)
         if (Array.isArray(imageUrls)) {
@@ -63,6 +83,47 @@ export function ProductsTable({ products, loading, onEdit, onDelete, onToggleAct
       if (product.imageUrl) return 1
     } catch (e) {
       // Ignore
+    }
+    return 0
+  }
+
+  // Calculate price from imageDetails
+  const getProductPrice = (product: Product): number => {
+    try {
+      if (product.imageDetails) {
+        const imageDetails = JSON.parse(product.imageDetails)
+        if (Array.isArray(imageDetails) && imageDetails.length > 0) {
+          // Get the first image with a price, or calculate average
+          const prices = imageDetails
+            .map((img: any) => img.price)
+            .filter((price: any) => price != null && price > 0)
+          if (prices.length > 0) {
+            // Return minimum price or average
+            return Math.min(...prices.map((p: any) => parseFloat(p)))
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error parsing imageDetails for price:", e)
+    }
+    return 0
+  }
+
+  // Calculate stock from imageDetails
+  const getProductStock = (product: Product): number => {
+    try {
+      if (product.imageDetails) {
+        const imageDetails = JSON.parse(product.imageDetails)
+        if (Array.isArray(imageDetails)) {
+          // Sum all quantities
+          return imageDetails.reduce((total: number, img: any) => {
+            const qty = img.quantity ?? 0
+            return total + (typeof qty === 'number' ? qty : parseFloat(qty) || 0)
+          }, 0)
+        }
+      }
+    } catch (e) {
+      console.error("Error parsing imageDetails for stock:", e)
     }
     return 0
   }
@@ -184,29 +245,37 @@ export function ProductsTable({ products, loading, onEdit, onDelete, onToggleAct
                 </td>
                 <td className="py-4 px-6">
                   <span className="font-bold text-sm" style={{ color: `#000000` }}>
-                    {product.price.toFixed(2)} د.م
+                    {(() => {
+                      const price = getProductPrice(product)
+                      return price > 0 ? `${price.toFixed(2)} د.م` : "متغير"
+                    })()}
                   </span>
                 </td>
                 <td className="py-4 px-6">
-                  <span
-                    className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold"
-                    style={{
-                      backgroundColor:
-                        product.stock > 10
-                          ? "rgba(34, 197, 94, 0.1)"
-                          : product.stock > 0
-                            ? "rgba(251, 191, 36, 0.1)"
-                            : "rgba(239, 68, 68, 0.1)",
-                      color:
-                        product.stock > 10
-                          ? "rgb(34, 197, 94)"
-                          : product.stock > 0
-                            ? "rgb(251, 191, 36)"
-                            : "rgb(239, 68, 68)",
-                    }}
-                  >
-                    {product.stock} قطعة
-                  </span>
+                  {(() => {
+                    const stock = getProductStock(product)
+                    return (
+                      <span
+                        className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold"
+                        style={{
+                          backgroundColor:
+                            stock > 10
+                              ? "rgba(34, 197, 94, 0.1)"
+                              : stock > 0
+                                ? "rgba(251, 191, 36, 0.1)"
+                                : "rgba(239, 68, 68, 0.1)",
+                          color:
+                            stock > 10
+                              ? "rgb(34, 197, 94)"
+                              : stock > 0
+                                ? "rgb(251, 191, 36)"
+                                : "rgb(239, 68, 68)",
+                        }}
+                      >
+                        {stock} قطعة
+                      </span>
+                    )
+                  })()}
                 </td>
                 <td className="py-4 px-6">
                   <span className="text-sm" style={{ color: `var(--color-text)` }}>

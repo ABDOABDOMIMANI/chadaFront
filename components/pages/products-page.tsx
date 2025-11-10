@@ -11,11 +11,10 @@ interface Product {
   id: number
   name: string
   description: string
-  price: number
-  stock: number
   category: { id: number; name: string }
   imageUrl?: string
   imageUrls?: string
+  imageDetails?: string
   fragrance?: string
   volume?: number
   active: boolean

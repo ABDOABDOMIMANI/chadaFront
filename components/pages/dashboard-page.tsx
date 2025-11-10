@@ -30,7 +30,24 @@ export function DashboardPage() {
         const orders = await ordersRes.json()
         const categories = await categoriesRes.json()
 
-        const lowStock = products.filter((p: any) => p.stock < 5).length
+        // Calculate low stock from imageDetails
+        const lowStock = products.filter((p: any) => {
+          try {
+            if (p.imageDetails) {
+              const imageDetails = JSON.parse(p.imageDetails)
+              if (Array.isArray(imageDetails)) {
+                const totalStock = imageDetails.reduce((total: number, img: any) => {
+                  const qty = img.quantity ?? 0
+                  return total + (typeof qty === 'number' ? qty : parseFloat(qty) || 0)
+                }, 0)
+                return totalStock < 5 && totalStock > 0
+              }
+            }
+          } catch (e) {
+            console.error("Error parsing imageDetails:", e)
+          }
+          return false
+        }).length
 
         setStats({
           totalProducts: products.length,
