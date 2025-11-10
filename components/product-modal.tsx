@@ -17,8 +17,6 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    price: "",
-    stock: "",
     category: "",
     fragrance: "",
     volume: "",
@@ -34,28 +32,14 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
   const [existingImages, setExistingImages] = useState<string[]>([])
   const [imageDetails, setImageDetails] = useState<Array<{ price?: string; description?: string; quantity?: string }>>([])
   const [viewingImage, setViewingImage] = useState<string | null>(null)
-  const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null)
-  const [originalPrice, setOriginalPrice] = useState<number | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (product) {
-      // If product has promotion, show original price in the price field
-      // Otherwise, show current price
-      const displayPrice = product.originalPrice 
-        ? parseFloat(product.originalPrice.toString()) 
-        : parseFloat(product.price.toString())
-      const original = product.originalPrice 
-        ? parseFloat(product.originalPrice.toString()) 
-        : parseFloat(product.price.toString())
-      
-      setOriginalPrice(original)
       setFormData({
         name: product.name || "",
         description: product.description || "",
-        price: displayPrice.toString(),
-        stock: product.stock || "",
         category: product.category?.id || "",
         fragrance: product.fragrance || "",
         volume: product.volume || "",
@@ -108,8 +92,6 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
       setFormData({
         name: "",
         description: "",
-        price: "",
-        stock: "",
         category: "",
         fragrance: "",
         volume: "",
@@ -123,36 +105,10 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
       setImagePreviews([])
       setExistingImages([])
       setImageDetails([])
-      setOriginalPrice(null)
-      setCalculatedPrice(null)
     }
   }, [product])
 
-  // Calculate price when discount percentage changes
-  useEffect(() => {
-    if (formData.discountPercentage && formData.price) {
-      const price = parseFloat(formData.price)
-      const discount = parseFloat(formData.discountPercentage)
-      if (!isNaN(price) && !isNaN(discount) && discount > 0 && discount <= 100) {
-        // Update original price when user changes the price field
-        setOriginalPrice(price)
-        const discountAmount = (price * discount) / 100
-        setCalculatedPrice(price - discountAmount)
-      } else {
-        setCalculatedPrice(null)
-        // If discount is removed, keep the current price as original
-        if (formData.price) {
-          setOriginalPrice(parseFloat(formData.price))
-        }
-      }
-    } else {
-      setCalculatedPrice(null)
-      // If no discount, the price field represents the actual price
-      if (formData.price) {
-        setOriginalPrice(parseFloat(formData.price))
-      }
-    }
-  }, [formData.discountPercentage, formData.price])
+  // Note: Price calculation removed since price is now per-image
 
   // Calculate end date when promotion days changes
   useEffect(() => {
@@ -219,30 +175,45 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
     setIsSubmitting(true)
 
     try {
-      const enteredPrice = parseFloat(formData.price)
+      // Validate that at least one image has price and quantity
+      if (imagePreviews.length === 0) {
+        alert("يجب إضافة صورة واحدة على الأقل للمنتج")
+        setIsSubmitting(false)
+        return
+      }
+
+      // Validate that all images have price and quantity
+      for (let i = 0; i < imagePreviews.length; i++) {
+        const detail = imageDetails[i] || {}
+        if (!detail.price || detail.price.trim() === "" || parseFloat(detail.price) <= 0) {
+          alert(`يجب إدخال سعر صحيح للصورة ${i + 1}`)
+          setIsSubmitting(false)
+          return
+        }
+        if (!detail.quantity || detail.quantity.trim() === "" || parseInt(detail.quantity) < 0) {
+          alert(`يجب إدخال كمية صحيحة للصورة ${i + 1}`)
+          setIsSubmitting(false)
+          return
+        }
+      }
+
       const discount = formData.discountPercentage ? parseFloat(formData.discountPercentage) : 0
       
       const productData: any = {
         name: formData.name,
         description: formData.description,
-        stock: Number.parseInt(formData.stock),
         category: { id: Number.parseInt(formData.category) },
         fragrance: formData.fragrance,
         volume: formData.volume ? Number.parseInt(formData.volume) : null,
         active: formData.active,
+        // Price and stock are now null - they come from imageDetails
+        price: null,
+        stock: null,
       }
 
-      // Handle pricing based on whether there's a promotion
+      // Handle promotion pricing (applies to all images via discountPercentage)
       if (discount > 0 && discount <= 100) {
-        // There's a promotion
-        // The price field represents the original price
-        productData.originalPrice = enteredPrice
         productData.discountPercentage = Math.round(discount)
-        
-        // Calculate the discounted price
-        const discountAmount = (enteredPrice * discount) / 100
-        productData.price = enteredPrice - discountAmount
-        
         // Add promotion dates
         if (formData.promotionStartDate) {
           productData.promotionStartDate = formData.promotionStartDate
@@ -251,8 +222,6 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
           productData.promotionEndDate = formData.promotionEndDate
         }
       } else {
-        // No promotion - price field is the actual price
-        productData.price = enteredPrice
         productData.discountPercentage = null
         productData.originalPrice = null
         productData.promotionStartDate = null
@@ -465,12 +434,13 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
                       <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-xs font-semibold mb-1" style={{ color: `var(--color-primary)` }}>
-                            سعر الصورة (د.م) - اختياري
+                            سعر الصورة (د.م) *
                           </label>
                           <input
                             type="number"
                             step="0.01"
                             min="0"
+                            required
                             value={imageDetails[index]?.price || ""}
                             onChange={(e) => updateImageDetail(index, "price", e.target.value)}
                             className="w-full px-3 py-2 rounded-lg border text-sm transition-all focus:ring-2 focus:ring-offset-2"
@@ -501,11 +471,12 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
                         </div>
                         <div>
                           <label className="block text-sm font-semibold mb-2" style={{ color: `var(--color-primary)` }}>
-                            الكمية - اختياري
+                            الكمية *
                           </label>
                           <input
                             type="number"
                             min="0"
+                            required
                             value={imageDetails[index]?.quantity || ""}
                             onChange={(e) => updateImageDetail(index, "quantity", e.target.value)}
                             className="w-full px-4 py-3 rounded-lg border text-base transition-all focus:ring-2 focus:ring-offset-2"
@@ -599,55 +570,6 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
                 </select>
               </div>
 
-              <div>
-                <label className="block text-base font-semibold mb-3" style={{ color: `var(--color-primary)` }}>
-                  {formData.discountPercentage && parseFloat(formData.discountPercentage.toString()) > 0 
-                    ? "السعر الأصلي (د.م) *" 
-                    : "السعر (د.م) *"}
-                </label>
-                <input
-                  type="number"
-                  name="price"
-                  value={formData.price}
-                  onChange={handleChange}
-                  required
-                  step="0.01"
-                  min="0"
-                  className="w-full px-5 py-4 rounded-xl border transition-all focus:ring-2 focus:ring-offset-2 text-base"
-                  style={{
-                    borderColor: `var(--color-border)`,
-                    backgroundColor: `var(--color-background)`,
-                    color: `var(--color-text)`,
-                  }}
-                  placeholder="0.00"
-                />
-                {formData.discountPercentage && parseFloat(formData.discountPercentage.toString()) > 0 && (
-                  <p className="text-xs mt-1 text-muted-foreground">
-                    هذا هو السعر الأصلي قبل الخصم
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-base font-semibold mb-3" style={{ color: `var(--color-primary)` }}>
-                  المخزون *
-                </label>
-                <input
-                  type="number"
-                  name="stock"
-                  value={formData.stock}
-                  onChange={handleChange}
-                  required
-                  min="0"
-                  className="w-full px-5 py-4 rounded-xl border transition-all focus:ring-2 focus:ring-offset-2 text-base"
-                  style={{
-                    borderColor: `var(--color-border)`,
-                    backgroundColor: `var(--color-background)`,
-                    color: `var(--color-text)`,
-                  }}
-                  placeholder="0"
-                />
-              </div>
 
               <div>
                 <label className="block text-base font-semibold mb-3" style={{ color: `var(--color-primary)` }}>
@@ -717,14 +639,10 @@ export function ProductModal({ product, categories, onSave, onClose }: ProductMo
                     }}
                     placeholder="0"
                   />
-                  {calculatedPrice !== null && (
-                    <div className="mt-2 p-3 rounded-lg" style={{ backgroundColor: `var(--color-secondary)` }}>
-                      <p className="text-sm" style={{ color: `var(--color-primary)` }}>
-                        <span className="line-through opacity-60">{originalPrice?.toFixed(2)} د.م</span>
-                        <span className="mr-2 font-bold">{calculatedPrice.toFixed(2)} د.م</span>
-                        <span className="text-xs">(-{formData.discountPercentage}%)</span>
-                      </p>
-                    </div>
+                  {formData.discountPercentage && parseFloat(formData.discountPercentage) > 0 && (
+                    <p className="text-xs mt-2" style={{ color: `var(--color-text-muted)` }}>
+                      سيتم تطبيق الخصم على جميع صور المنتج
+                    </p>
                   )}
                 </div>
 
